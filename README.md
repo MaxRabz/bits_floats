@@ -1,6 +1,6 @@
 # COM2113 Programming Assignment: Bits, Integers, and Floating Point
 
-This assignment contains nine independent C exercises. It is not one cohesive application. Each problem targets a specific idea from the Bits/Integers and Floating-Point lectures.
+This assignment contains ten independent C exercises. It is not one cohesive application. Each problem targets a specific idea from the Bits/Integers and Floating-Point lectures.
 
 ## The required method is part of the assignment
 
