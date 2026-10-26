@@ -192,8 +192,36 @@ uint32_t fp32_next_up_bits(uint32_t bits) {
 bool fp32_truncate_to_int(uint32_t bits, int32_t *out) {
     fp32_info_t info = fp32_decode(bits);
 
-    if (out != NULL) {
+    if (info.kind == FP32_INFINITY || info.kind == FP32_NAN) return false;
+    if (info.kind == FP32_ZERO || info.kind == FP32_SUBNORMAL) {
         *out = 0;
+        return true;
     }
-    return false;
+    if (info.unbiased_exponent < 0) {
+        *out = 0;
+        return true;
+    }
+    uint32_t frac = info.fraction_bits | (1U << 23);
+    if (info.unbiased_exponent < 23) frac >>= (23-info.unbiased_exponent);
+    else {
+        if (info.unbiased_exponent-23 > 8) return false;
+        frac <<= (info.unbiased_exponent-23);
+    } 
+
+    if (!info.negative) {
+        if (frac > INT32_MAX) {
+            return false;
+        }
+        *out = frac;
+        return true;
+    } else {
+        if (frac > (1U << 31)) return false;
+        if (frac == (1U << 31)) {
+            *out = INT32_MIN;
+            return true;
+        } else {
+            *out = -(int32_t)frac;
+            return true;
+        }
+    }
 }
