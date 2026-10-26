@@ -121,30 +121,76 @@ uint32_t multiply_by_24(uint32_t x) {
 }
 
 fp32_info_t fp32_decode(uint32_t bits) {
-    (void)bits;
+    bool sign = bits & (1U << 31);
+    uint32_t exp32 = bits & (((1U << 8)-1) << 23);
+    uint8_t exp = exp32 >> 23;
+    uint32_t frac = bits & ((1U << 23) -1);
+    fp32_kind_t measure = FP32_ZERO;
+    int unbiased_exp = 0;
+    if (exp) {
+        if (exp == 255) {
+            if (frac) {
+                measure = FP32_NAN;
+            } else {
+                measure = FP32_INFINITY;
+            }
+        } else {
+            measure = FP32_NORMAL;
+            unbiased_exp = exp - 127;
+        }
+    } else {
+        if (frac) {
+            measure = FP32_SUBNORMAL;
+            unbiased_exp = -126;
+        } else {
+            measure = FP32_ZERO;
+            unbiased_exp = -126;
+        }
+    }
 
     fp32_info_t info = {
-        .negative = false,
-        .kind = FP32_ZERO,
-        .exponent_bits = 0,
-        .fraction_bits = 0,
-        .unbiased_exponent = -126,
+        .negative = sign,
+        .kind = measure,
+        .exponent_bits = exp,
+        .fraction_bits = frac,
+        .unbiased_exponent = unbiased_exp,
     };
     return info;
 }
 
 double fp32_exact_value(uint32_t bits) {
-    (void)bits;
-    return 0.0;
+    fp32_info_t info = fp32_decode(bits);
+    if (info.kind == FP32_INFINITY) {
+        return info.negative ? -INFINITY : INFINITY;
+    }
+    if (info.kind == FP32_NAN) {
+        return NAN; 
+    }
+    if (info.kind == FP32_ZERO) {
+        return info.negative ? -0.0 : 0.0;
+    }
+
+    double value = 0.0;
+    
+    if (info.kind == FP32_NORMAL) {
+        uint32_t frac = info.fraction_bits | (1U << 23);
+        value = (double) frac * pow(2, info.unbiased_exponent -23);
+    }
+    if (info.kind == FP32_SUBNORMAL) value = info.fraction_bits * pow(2, -149);
+    return info.negative ? -value : value;
 }
 
 uint32_t fp32_next_up_bits(uint32_t bits) {
-    (void)bits;
-    return 0;
+    fp32_info_t info = fp32_decode(bits);
+    if (info.kind == FP32_NAN) return bits;
+    if (info.kind == FP32_INFINITY) return info.negative ? 0xFF7FFFFF: bits; 
+    if (info.kind == FP32_ZERO) return 0x00000001;
+    if (info.negative) return bits-1;
+    return bits+1;
 }
 
 bool fp32_truncate_to_int(uint32_t bits, int32_t *out) {
-    (void)bits;
+    fp32_info_t info = fp32_decode(bits);
 
     if (out != NULL) {
         *out = 0;
