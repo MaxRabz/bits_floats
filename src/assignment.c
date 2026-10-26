@@ -47,25 +47,16 @@ uint32_t splice_bits(
 }
 
 int32_t decode_twos_complement(uint32_t bits, unsigned width) {
-    uint32_t bitsToKeep = 0U;
-    if (width != 32) {
-        bitsToKeep = bits & ((1U << width) - 1);
-    } else {
-        bitsToKeep = bits;
+    uint32_t bitsToKeep = (width == 32) ? UINT32_MAX : ((1U<<width)-1U);
+    bits &= bitsToKeep;
+
+    uint32_t sign = (1U<<(width-1));
+    if ((bits & sign) == 0) return (int32_t)bits;
+    uint32_t magnitude = ((~bits) & bitsToKeep) + 1U;
+    if (magnitude == (1U << 31)) {
+        return INT32_MIN;
     }
-    int32_t result = 0;
-    int32_t value = 1;
-    for (unsigned i = 0; i < width; i++) {
-        if (i == width-1) {
-            value *= -1;
-        }
-        if (bitsToKeep & 1) {
-            result += value;
-        }
-        value *=2;
-        bitsToKeep >>= 1;
-    }
-    return result;
+    return -(int32_t)magnitude;
 }
 
 bool add_signed_width(
